@@ -1,50 +1,57 @@
 from selenium import webdriver
-from selenium.webdriver import Keys
-# Библиотека, которая позволяет вводить данные на сайт с клавиатуры
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 import time
 
-# запрос пользователя
-a = input('Введите запрос для Википедии: ')
+def search_wikipedia(query):
+    browser = webdriver.Chrome()
+    browser.get("https://ru.wikipedia.org/")
 
-# база парсинга
-browser = webdriver.Chrome()
-browser.get(
-    "https://ru.wikipedia.org/wiki/%D0%97%D0%B0%D0%B3%D0%BB%D0%B0%D0%B2%D0%BD%D0%B0%D1%8F_%D1%81%D1%82%D1%80%D0%B0%D0%BD%D0%B8%D1%86%D0%B0")
+    search_box = browser.find_element(By.ID, "searchInput")
+    search_box.send_keys(query)
+    search_box.send_keys(Keys.RETURN)
 
-# проверка того на каком сайте находимся
-assert "Википедия" in browser.title
-time.sleep(5)
-# Находим окно поиска
-search_box = browser.find_element(By.ID, "searchInput")
-# Прописываем ввод текста в поисковую строку. В кавычках тот текст, который нужно ввести (переменная "a")
-search_box.send_keys(a)
-# Добавляем не только введение текста, но и его отправку
-search_box.send_keys(Keys.RETURN)
-time.sleep(5)
+    return browser
 
-# варианты дальнейшей работы программы
-# 1 листать параграфы текущей статьи;
-# 2 перейти на одну из связанных страниц
+def list_paragraphs(browser):
+    paragraphs = browser.find_elements(By.TAG_NAME, "p")
+    for idx, para in enumerate(paragraphs):
+        print(f"Параграф {idx + 1}:")
+        print(para.text)
+        print("\n")
 
-b = int(input("Выберите один пункт \n листать параграфы текущей статьи - 1,"
-              " перейти на одну из связанных страниц - 2"))
+def list_internal_links(browser):
+    links = browser.find_elements(By.XPATH, "//div[@id='bodyContent']//a[@href and not(contains(@href, ':'))]")
+    internal_links = [link for link in links if link.get_attribute("href").startswith("https://ru.wikipedia.org/wiki/")]
+    for idx, link in enumerate(internal_links):
+        print(f"{idx + 1}: {link.text} - {link.get_attribute('href')}")
+    return internal_links
 
-if b == 1:
-    c = browser.find_element(By.LINK_TEXT, a)
-    c.click()
+def main():
+    query = input("Введите ваш запрос: ")
+    browser = search_wikipedia(query)
 
-    variants = int(input("Листать параграфы статьи - 1, перейти на одну из внутренних статей - 2"))
-    # try / except
+    while True:
+        print("\nВыберите действие:")
+        print("1. Листать параграфы текущей статьи")
+        print("2. Перейти на внутреннюю ссылку")
+        print("3. Выйти")
 
-    if variants == 1:
-        paragraphs = browser.find_elements(By.TAG_NAME, value="p")
-        for paragraph in paragraphs:
-            print(paragraph.text)
-            input()
+        choice = input("Введите номер вашего выбора: ")
 
-elif b == 2:
-    #browser.find_element()
-    a = browser.find_element(By.LINK_TEXT, a)
-    # Добавляем клик на элемент
-    a.click()
+        if choice == "1":
+            list_paragraphs(browser)
+        elif choice == "2":
+            internal_links = list_internal_links(browser)
+            link_choice = int(input("Введите номер ссылки, которую хотите открыть: ")) - 1
+            if 0 <= link_choice < len(internal_links):
+                browser.get(internal_links[link_choice].get_attribute("href"))
+        elif choice == "3":
+            browser.quit()
+            break
+        else:
+            print("Неверный выбор. Пожалуйста, попробуйте снова.")
+
+
+if __name__ == "__main__":
+    main()
